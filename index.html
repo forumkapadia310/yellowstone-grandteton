@@ -224,6 +224,28 @@ body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;height:1
   .stop-name{font-size:12px}
   .stop-desc{font-size:10.5px}
 }
+
+/* When Ctrl+P is used on main page, hide everything and instruct to use Print button */
+@media print {
+  body * { visibility: hidden !important; }
+  body::before {
+    content: 'Please close this dialog and click the "Print" button in the header (top-right) for the compact printable version.';
+    visibility: visible;
+    display: block;
+    position: fixed;
+    top: 40%;
+    left: 10%;
+    right: 10%;
+    font-family: Georgia, serif;
+    font-size: 14pt;
+    text-align: center;
+    color: #333;
+    background: #fef3c7;
+    border: 2px solid #f59e0b;
+    padding: 20px;
+    border-radius: 8px;
+  }
+}
 </style>
 </head>
 <body>
