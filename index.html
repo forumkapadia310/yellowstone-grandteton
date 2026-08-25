@@ -812,44 +812,42 @@ document.getElementById('printBtn').addEventListener('click',()=>{
 });
 
 function generatePrintHTML(){
-  function trimDesc(desc){
-    let s=desc.split(/(?:HONEST|BABY|DIFFICULTY|WALK|HIKE):/)[0].trim();
-    if(s.length>140) s=s.substring(0,137)+'...';
-    return s.replace(/\.$/,'');
+  function shortName(s){
+    return s.name.replace(/\s*\(SKIP-able\)/i,'').replace(/^★\s*/,'').replace(/^PRE-DAWN[^A-Z]*/,'').replace(/NORTH RIM DRIVE\s*—\s*/i,'');
   }
-  function stopPrefix(s){
-    if(s.must) return '<span class="mstar">&#9733;</span>';
-    if(s.optional) return '<span class="mopt">[SKIP-able]</span>';
+  function marker(s){
+    if(s.must) return '<b style="color:#c2410c">*</b> ';
+    if(s.optional) return '<span style="color:#999;font-style:italic">skip:</span> ';
     return '';
+  }
+  function shortTime(t){
+    return t.replace(':00','').replace(' AM','a').replace(' PM','p');
   }
 
   const daysHtml=DAYS.map((day,i)=>`
     <div class="day">
-      <div class="day-title">Day ${i+1} &mdash; ${day.date} &mdash; ${day.subtitle} <span class="d-stats">(drive ${day.stats.drive.replace(' hrs','h').replace(' hr','h')}, hike ${day.stats.hike})</span></div>
-      ${day.stops.map(s=>`<div class="stop${s.optional?' opt':''}"><span class="t">${s.time}</span> ${stopPrefix(s)}<b>${s.name.replace(/\s*\(SKIP-able\)/i,'').replace(/^★\s*/,'')}</b> &mdash; ${trimDesc(s.desc)}</div>`).join('')}
+      <div class="day-title">Day ${i+1} &middot; ${day.date.replace(/,.*/,'')} ${day.date.match(/,\s*(.+)/)?.[1]||''} &mdash; ${day.subtitle} <span class="ds">(${day.stats.drive.replace(/hrs?/,'h').replace(/\s/g,'').replace(/\(.*\)/,'')} drive)</span></div>
+      ${day.stops.map(s=>`<div class="s${s.optional?' o':''}"><span class="t">${shortTime(s.time)}</span> ${marker(s)}${shortName(s)}</div>`).join('')}
     </div>
   `).join('');
 
   return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8">
-<title>Yellowstone &amp; Grand Teton Itinerary</title>
+<title>Yellowstone Itinerary</title>
 <style>
-  @page{margin:10mm 12mm}
-  body{font-family:'Segoe UI',Arial,sans-serif;color:#111;font-size:9pt;line-height:1.35;margin:0;padding:0}
-  h1{font-size:16pt;margin:0 0 2px 0}
-  .subtitle{color:#555;font-size:9pt;margin-bottom:8px}
-  .lodging{font-size:8.5pt;background:#f0f9ff;padding:6px 10px;border-left:3px solid #0284c7;margin-bottom:8px}
-  .lodging b{color:#075985}
-  .day{margin-top:8px;page-break-inside:avoid}
-  .day-title{font-weight:bold;font-size:10pt;background:#1e293b;color:#fff;padding:4px 8px;border-radius:3px;margin-bottom:3px}
-  .day-title .d-stats{font-weight:normal;font-size:8pt;color:#94a3b8;float:right}
-  .stop{padding:1.5px 0 1.5px 4px;border-bottom:0.5px dotted #ddd}
-  .stop .t{color:#666;font-weight:600;display:inline-block;min-width:52px;font-size:8.5pt}
-  .stop.opt{color:#666}
-  .stop.opt b{font-weight:600}
-  .mstar{color:#d97706;font-weight:bold;margin-right:2px}
-  .mopt{color:#999;font-size:7.5pt;font-style:italic;margin-right:3px}
-  .safety{margin-top:10px;font-size:8pt;background:#fef2f2;padding:6px 10px;border-left:3px solid #dc2626;page-break-inside:avoid}
+  @page{margin:8mm 10mm}
+  *{box-sizing:border-box}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#000;font-size:8pt;line-height:1.25;margin:0;padding:0;column-count:2;column-gap:8mm}
+  h1{font-size:12pt;margin:0;column-span:all}
+  .sub{color:#555;font-size:8pt;margin-bottom:4px;column-span:all}
+  .lod{font-size:7.5pt;background:#eff6ff;padding:3px 6px;margin-bottom:6px;column-span:all;border-left:2px solid #1e40af}
+  .day{margin-bottom:6px;break-inside:avoid;page-break-inside:avoid}
+  .day-title{font-weight:bold;font-size:8.5pt;background:#1e293b;color:#fff;padding:2px 5px;margin-bottom:1px}
+  .day-title .ds{font-weight:normal;font-size:7pt;color:#cbd5e1;float:right}
+  .s{padding:0.5px 0 0.5px 3px;border-bottom:0.3px dotted #ccc}
+  .s .t{color:#555;font-weight:600;display:inline-block;min-width:34px;font-size:7.5pt}
+  .s.o{color:#666}
+  .safety{margin-top:8px;font-size:7pt;background:#fef2f2;padding:3px 6px;border-left:2px solid #dc2626;column-span:all}
   .safety b{color:#991b1b}
   @media print{
     body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
@@ -857,21 +855,13 @@ function generatePrintHTML(){
   }
 </style>
 </head><body>
-<h1>Yellowstone &amp; Grand Teton</h1>
-<div class="subtitle">Aug 25 &ndash; Sep 1, 2026 &middot; 3 adults + 16-mo toddler &middot; 1 SUV</div>
-
-<div class="lodging">
-  <b>Lodging:</b>
-  Aug 25&ndash;28 Terranova Cabins, 35 Kirkwood Creek Rd, West Yellowstone MT &middot;
-  Aug 28&ndash;30 Wilson rental, 3940 S Lake Creek Dr #3, Wilson WY &middot;
-  Aug 30&ndash;Sep 1 Yellowstone Sunshine, 25 White Ln, Gardiner MT
-</div>
+<h1>Yellowstone &amp; Grand Teton &middot; Aug 25 &ndash; Sep 1, 2026</h1>
+<div class="sub">3 adults + 16-mo toddler &middot; * = must-do, skip: = optional</div>
+<div class="lod"><b>Stays:</b> Aug 25&ndash;28 Terranova (W Yellowstone) &middot; Aug 28&ndash;30 Wilson (Jackson Hole) &middot; Aug 30&ndash;Sep 1 Yellowstone Sunshine (Gardiner)</div>
 
 ${daysHtml}
 
-<div class="safety">
-  <b>Safety:</b> Never swim in in-park thermals (use Yellowstone Hot Springs, Gardiner) &middot; 100yd from bears/wolves, 25yd from bison/elk &middot; Hold toddler on all boardwalks &middot; Bear spray at dawn in Lamar/Hayden &middot; Check nps.gov/yell each morning.
-</div>
+<div class="safety"><b>Safety:</b> No swim in thermals (use Yellowstone Hot Springs, Gardiner) &middot; 100yd bears/wolves, 25yd bison/elk &middot; Hold kid on boardwalks &middot; Bear spray dawn/dusk &middot; nps.gov/yell for road status</div>
 </body></html>`;
 }
 
