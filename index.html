@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Yellowstone & Grand Teton — Aug 25 – Sep 1, 2026</title>
+<link rel="manifest" href="./manifest.json">
+<meta name="theme-color" content="#1e293b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Yellowstone">
+<link rel="apple-touch-icon" href="./icon.svg">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',-apple-system,BlinkMacSystemFont,sans-serif;height:100vh;overflow:hidden;
+  background:#0f172a;-webkit-tap-highlight-color:transparent}
+.container{display:flex;height:100vh}
+.itinerary{width:440px;min-width:440px;display:flex;flex-direction:column;background:#fff;z-index:10}
+.header{padding:20px 24px;background:linear-gradient(135deg,#1e293b 0%,#334155 100%);color:#fff}
+.header h1{font-size:20px;font-weight:700;letter-spacing:-0.3px}
+.header p{font-size:13px;color:#94a3b8;margin-top:4px}
+.tabs{display:flex;background:#f8fafc;border-bottom:2px solid #e2e8f0;padding:0 8px;overflow-x:auto}
+.tab{flex:1;min-width:70px;padding:14px 4px 12px;text-align:center;cursor:pointer;font-size:12px;font-weight:600;
+  color:#94a3b8;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all .2s;
+  text-transform:uppercase;letter-spacing:0.5px;white-space:nowrap}
+.tab:hover{color:#475569;background:#f1f5f9}
+.tab.active{color:var(--day-color);border-bottom-color:var(--day-color);background:#fff}
+.day-subtitle{padding:16px 20px 8px;font-size:13px;color:#64748b;font-weight:500;
+  border-bottom:1px solid #f1f5f9;background:#fafbfc}
+.day-stats{display:flex;gap:16px;padding:8px 20px 12px;background:#fafbfc;border-bottom:1px solid #e2e8f0;flex-wrap:wrap}
+.stat{font-size:11px;color:#94a3b8}
+.stat strong{color:#475569}
+.stops{flex:1;overflow-y:auto;padding:8px 12px;-webkit-overflow-scrolling:touch}
+.stops::-webkit-scrollbar{width:6px}
+.stops::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+.stop-card{display:flex;padding:12px;border-radius:10px;margin-bottom:2px;cursor:pointer;
+  transition:all .25s ease;border:1.5px solid transparent;position:relative}
+.stop-card:hover,.stop-card.highlighted{background:color-mix(in srgb,var(--day-color) 8%,white);
+  border-color:color-mix(in srgb,var(--day-color) 40%,white)}
+.stop-card.highlighted{box-shadow:0 0 0 1px color-mix(in srgb,var(--day-color) 25%,white)}
+.stop-num{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:#fff;margin-right:12px;margin-top:1px;flex-shrink:0;
+  box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.stop-time{font-size:11px;color:#94a3b8;font-weight:600;min-width:64px;padding-top:2px;margin-right:4px;
+  font-variant-numeric:tabular-nums}
+.stop-info{flex:1;min-width:0}
+.stop-name{font-size:13.5px;font-weight:600;color:#1e293b;line-height:1.3}
+.stop-desc{font-size:12px;color:#64748b;margin-top:3px;line-height:1.5}
+.stop-badges{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap}
+.badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:0.3px}
+.badge-drive{background:#dbeafe;color:#2563eb}
+.badge-eat{background:#fef3c7;color:#d97706}
+.badge-hike{background:#d1fae5;color:#059669}
+.badge-see{background:#ede9fe;color:#7c3aed}
+.badge-stay{background:#fce7f3;color:#db2777}
+.badge-photo{background:#ffedd5;color:#ea580c}
+.badge-shop{background:#f0fdf4;color:#16a34a}
+.badge-wildlife{background:#fee2e2;color:#dc2626}
+.badge-swim{background:#cffafe;color:#0891b2}
+.badge-nap{background:#f5f3ff;color:#8b5cf6}
+.badge-optional{background:#f1f5f9;color:#94a3b8;border:1px dashed #cbd5e1}
+.badge-must{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#fff;
+  font-weight:700;box-shadow:0 1px 3px rgba(245,158,11,.45);
+  display:inline-flex;align-items:center;gap:3px}
+.stop-card.optional{opacity:0.7}
+.stop-card.optional .stop-name{color:#64748b}
+.stop-card.optional:hover,.stop-card.optional.highlighted{opacity:1}
+.stop-card.must{background:linear-gradient(90deg,#fffbeb 0%,transparent 30%)}
+.stop-card.must::before{
+  content:'';position:absolute;left:0;top:10px;bottom:10px;width:3px;
+  background:linear-gradient(180deg,#fbbf24,#f59e0b);border-radius:0 2px 2px 0}
+.stop-card.must .stop-name{color:#0f172a;font-weight:700}
+.stop-card.must:hover,.stop-card.must.highlighted{
+  background:linear-gradient(90deg,#fef3c7 0%,color-mix(in srgb,var(--day-color) 6%,white) 100%)}
+.click-hint{font-size:10px;color:#94a3b8;margin-top:4px;font-style:italic}
+.stop-card:hover .click-hint{color:var(--day-color)}
+#map{flex:1;height:100vh}
+.leaflet-popup-content-wrapper{border-radius:10px;box-shadow:0 4px 20px rgba(0,0,0,.15)}
+.leaflet-popup-content{margin:10px 14px;font-family:'Segoe UI',sans-serif}
+.popup-name{font-weight:700;font-size:13px;color:#1e293b}
+.popup-time{font-size:11px;color:#64748b;margin-top:2px}
+.popup-desc{font-size:12px;color:#475569;margin-top:4px;line-height:1.4}
+.connector{position:absolute;left:24px;top:38px;bottom:-4px;width:2px;background:#e2e8f0}
+.stop-card:last-child .connector{display:none}
+
+/* Modal */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(15,23,42,.75);z-index:2000;
+  display:none;align-items:center;justify-content:center;padding:20px;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+  animation:fadeIn .2s ease}
+.modal-overlay.open{display:flex}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes modalIn{from{transform:translateY(20px) scale(0.96);opacity:0}to{transform:none;opacity:1}}
+.modal{
+  background:#fff;border-radius:16px;max-width:620px;width:100%;max-height:90vh;
+  overflow:hidden;display:flex;flex-direction:column;position:relative;
+  box-shadow:0 25px 60px rgba(0,0,0,.4);animation:modalIn .25s ease}
+.modal-close{
+  position:absolute;top:12px;right:12px;background:rgba(0,0,0,.5);color:#fff;
+  border:none;width:34px;height:34px;border-radius:50%;cursor:pointer;
+  font-size:22px;line-height:1;z-index:10;display:flex;align-items:center;
+  justify-content:center;transition:background .2s;font-family:inherit}
+.modal-close:hover{background:rgba(0,0,0,.75)}
+.modal-image-wrap{
+  position:relative;width:100%;aspect-ratio:16/9;background:#f1f5f9;
+  display:flex;align-items:center;justify-content:center;overflow:hidden}
+.modal-image{width:100%;height:100%;object-fit:cover;display:none}
+.modal-image.loaded{display:block}
+.modal-image-status{position:absolute;color:#94a3b8;font-size:13px;text-align:center;padding:20px}
+.modal-image-status .spinner{
+  display:inline-block;width:24px;height:24px;border:3px solid #e2e8f0;
+  border-top-color:var(--day-color,#3b82f6);border-radius:50%;
+  animation:spin .8s linear infinite;margin-bottom:8px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal-image-credit{
+  position:absolute;bottom:6px;right:8px;font-size:10px;color:#fff;
+  background:rgba(0,0,0,.5);padding:2px 6px;border-radius:4px}
+.modal-content{padding:18px 22px 20px;overflow-y:auto;flex:1;-webkit-overflow-scrolling:touch}
+.modal-time{
+  font-size:11px;color:var(--day-color);font-weight:700;
+  text-transform:uppercase;letter-spacing:0.6px}
+.modal-title{
+  font-size:22px;font-weight:700;color:#1e293b;margin-top:4px;line-height:1.2;letter-spacing:-0.3px}
+.modal-badges{margin-top:10px;display:flex;gap:5px;flex-wrap:wrap}
+.modal-desc{margin-top:14px;font-size:14px;color:#334155;line-height:1.6}
+.modal-toddler{
+  margin-top:12px;padding:10px 12px;background:#fef3c7;border-left:3px solid #f59e0b;
+  border-radius:6px;font-size:12.5px;color:#78350f;line-height:1.5}
+.modal-toddler-label{font-weight:700;font-size:10.5px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;color:#92400e}
+.modal-extract{
+  margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9;
+  font-size:13px;color:#64748b;line-height:1.6}
+.modal-extract-label{
+  font-size:10px;color:#94a3b8;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.5px;margin-bottom:6px}
+.modal-actions{margin-top:18px;display:flex;gap:8px;flex-wrap:wrap}
+.modal-action{
+  padding:9px 16px;border-radius:8px;background:#f1f5f9;border:none;
+  color:#1e293b;font-size:12px;font-weight:600;cursor:pointer;
+  text-decoration:none;display:inline-flex;align-items:center;gap:6px;
+  transition:all .2s;font-family:inherit}
+.modal-action:hover{background:#e2e8f0}
+.modal-action.primary{background:var(--day-color);color:#fff}
+.modal-action.primary:hover{filter:brightness(1.1)}
+
+.mobile-toggle{display:none}
+
+@media(max-width:768px){
+  .container{flex-direction:column}
+  .itinerary{width:100%;min-width:unset;order:2;flex:1;min-height:0}
+  #map{order:1;flex:none;height:38vh;min-height:180px}
+  .header{padding:12px 16px}
+  .header h1{font-size:17px}
+  .header p{font-size:11px;margin-top:2px}
+  .tabs{padding:0 2px;overflow-x:auto;-webkit-overflow-scrolling:touch;flex-shrink:0}
+  .tab{padding:10px 2px 8px;font-size:11px;letter-spacing:0.3px;white-space:nowrap;min-width:60px}
+  .tab .tab-date{font-size:9px}
+  .day-subtitle{padding:10px 14px 4px;font-size:12px}
+  .day-stats{padding:4px 14px 8px;gap:10px}
+  .stat{font-size:10px}
+  .stops{padding:6px 8px}
+  .stop-card{padding:10px 8px;border-radius:8px}
+  .stop-num{width:22px;height:22px;font-size:10px;margin-right:8px}
+  .stop-time{font-size:10px;min-width:54px}
+  .stop-name{font-size:12.5px}
+  .stop-desc{font-size:11px;margin-top:2px;line-height:1.4}
+  .badge{font-size:9px;padding:1px 5px}
+  .connector{left:19px;top:34px}
+  .leaflet-popup-content{margin:8px 10px}
+  .popup-name{font-size:12px}
+  .popup-desc{font-size:11px}
+
+  .mobile-toggle{
+    display:flex;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+    z-index:1000;background:#1e293b;border-radius:12px;padding:4px;gap:4px;
+    box-shadow:0 4px 20px rgba(0,0,0,.35)}
+  .toggle-btn{
+    padding:8px 20px;border-radius:9px;border:none;font-size:12px;font-weight:600;
+    cursor:pointer;transition:all .2s;color:#94a3b8;background:transparent;
+    font-family:inherit;display:flex;align-items:center;gap:5px}
+  .toggle-btn.active{background:var(--day-color,#3b82f6);color:#fff}
+  .toggle-btn svg{width:14px;height:14px;fill:currentColor}
+
+  body.view-map .itinerary{display:none}
+  body.view-map #map{height:100vh;flex:1}
+  body.view-list #map{display:none}
+  body.view-list .itinerary{height:100vh;flex:none}
+
+  .modal-overlay{padding:0;align-items:flex-end}
+  .modal{max-height:92vh;border-radius:16px 16px 0 0;animation:modalUp .3s ease}
+  @keyframes modalUp{from{transform:translateY(100%)}to{transform:none}}
+  .modal-title{font-size:18px}
+  .modal-content{padding:14px 18px 24px}
+  .modal-desc{font-size:13px}
+  .modal-extract{font-size:12px}
+}
+
+@media(max-width:380px){
+  .header{padding:10px 12px}
+  .header h1{font-size:15px}
+  .stop-time{min-width:48px;font-size:9px}
+  .stop-num{width:20px;height:20px;font-size:9px;margin-right:6px}
+  .stop-name{font-size:12px}
+  .stop-desc{font-size:10.5px}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="itinerary">
+    <div class="header">
+      <h1>Yellowstone & Grand Teton</h1>
+      <p>Aug 25 – Sep 1, 2026 &middot; 3 adults + 16-mo toddler &middot; 1 SUV</p>
+    </div>
+    <div class="tabs" id="tabs"></div>
+    <div id="dayInfo"></div>
+    <div class="stops" id="stops"></div>
+  </div>
+  <div id="map"></div>
+</div>
+
+<div class="mobile-toggle" id="mobileToggle">
+  <button class="toggle-btn active" data-view="split" id="btnSplit">
+    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="7" rx="1.5"/><rect x="2" y="14" width="20" height="7" rx="1.5"/></svg>
+    Split
+  </button>
+  <button class="toggle-btn" data-view="map" id="btnMap">
+    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 010-5 2.5 2.5 0 010 5z"/></svg>
+    Map
+  </button>
+  <button class="toggle-btn" data-view="list" id="btnList">
+    <svg viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>
+    List
+  </button>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal" id="modal">
+    <button class="modal-close" id="modalClose" aria-label="Close">×</button>
+    <div class="modal-image-wrap">
+      <img class="modal-image" id="modalImage" alt="">
+      <div class="modal-image-status" id="modalImageStatus">
+        <div class="spinner"></div>
+        <div>Loading photo…</div>
+      </div>
+      <div class="modal-image-credit" id="modalImageCredit" style="display:none">via Wikipedia</div>
+    </div>
+    <div class="modal-content">
+      <div class="modal-time" id="modalTime"></div>
+      <h2 class="modal-title" id="modalTitle"></h2>
+      <div class="modal-badges" id="modalBadges"></div>
+      <p class="modal-desc" id="modalDesc"></p>
+      <div id="modalToddlerWrap" style="display:none">
+        <div class="modal-toddler">
+          <div class="modal-toddler-label">👶 Toddler note</div>
+          <div id="modalToddler"></div>
+        </div>
+      </div>
+      <div id="modalExtractWrap" style="display:none">
+        <div class="modal-extract">
+          <div class="modal-extract-label">About this place</div>
+          <div id="modalExtract"></div>
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button class="modal-action primary" id="modalShowMap">📍 Show on Map</button>
+        <a class="modal-action" id="modalWikiLink" href="" target="_blank" rel="noopener" style="display:none">Wikipedia →</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const DAYS = [
+  {
+    label:"Day 1",date:"Mon, Aug 25",
+    subtitle:"Bozeman Airport → Terranova (easy arrival)",
+    stats:{drive:"1.5 hrs",hike:"—",wake:"2:00 PM"},
+    color:"#3b82f6",
+    stops:[
+      {time:"2:00 PM",name:"Bozeman Yellowstone Intl Airport",desc:"Land, pick up SUV rental. Confirm car seat installed properly. Airport is small — luggage + car within 30 min.",lat:45.7776,lng:-111.1530,badges:["drive"],wiki:"Bozeman_Yellowstone_International_Airport",toddler:"Diaper change before the 90-min drive. Snack + water ready."},
+      {time:"3:00 PM",name:"Bozeman — Grocery Run",desc:"Rosauers or Town & Country. Prices are 30–40% cheaper than West Yellowstone. Stock for 3 days at cabin.",lat:45.6844,lng:-111.0442,badges:["shop"],wiki:"Bozeman,_Montana",toddler:"Pouches, cheese sticks, crackers, bananas, milk, sunscreen, wipes."},
+      {time:"4:00 PM",name:"Drive to West Yellowstone (US-191)",desc:"~90 min through Gallatin Canyon past Big Sky. River-side scenic drive.",lat:45.28,lng:-111.35,badges:["drive","photo"],wiki:"Gallatin_River",toddler:"Prime nap window in car seat."},
+      {time:"5:30 PM",name:"Terranova Cabins — Check In",desc:"35 Kirkwood Creek Rd. Unpack, let toddler roam. Easy dinner from groceries.",lat:44.6410,lng:-111.0997,badges:["stay"],wiki:"West_Yellowstone,_Montana",toddler:"Baby-proof outlets, block stairs, set up pack-n-play now."},
+      {time:"7:00 PM",name:"Madison Junction sunset (SKIP-able)",desc:"Optional 20-min drive into park. Bison in meadows at dusk. HONEST take: skip it — the whole family is jet-lagged. You'll see Madison Junction fresh tomorrow morning.",lat:44.6453,lng:-110.8622,badges:["see","optional"],optional:true,wiki:"Madison_River",toddler:"SKIP if kid is tired. Bedtime routine matters more."}
+    ]
+  },
+  {
+    label:"Day 2",date:"Tue, Aug 26",
+    subtitle:"Southwest Loop — Grand Prismatic + Old Faithful (low driving)",
+    stats:{drive:"2.5 hrs",hike:"~2 mi",wake:"7:00 AM"},
+    color:"#10b981",
+    stops:[
+      {time:"7:00 AM",name:"Depart Terranova",desc:"Early start = empty parking lots. Enter park via West Entrance ($35/vehicle, 7-day pass covers Aug 26–Sep 1).",lat:44.6577,lng:-111.0940,badges:["drive"],wiki:"Yellowstone_National_Park",toddler:"Big breakfast at cabin. Bring lunch cooler — you'll be far from restaurants."},
+      {time:"7:30 AM",name:"Madison Junction",desc:"WALK: 200 ft. DIFFICULTY: none. BABY: yes. Quick stretch, bison often here at dawn.",lat:44.6453,lng:-110.8622,badges:["see"],wiki:"Madison_River",toddler:"Stay in car if bison within 25 yds — that's the legal limit."},
+      {time:"7:45 AM",name:"Firehole Canyon Drive (SKIP-able)",desc:"WALK: none, drive only. 2-mi one-way scenic loop past Firehole Falls. HONEST: pretty but adds 15 min. SKIP if you want to reach Fountain Paint Pots faster and beat the crowds.",lat:44.6217,lng:-110.8703,badges:["drive","see","optional"],optional:true,wiki:"Firehole_River",toddler:"Skip. Not worth 15 min with sleepy kid — you have bigger stops today."},
+      {time:"8:15 AM",name:"★ Fountain Paint Pots (Lower Geyser Basin)",desc:"WALK: 0.5 mi loop, flat boardwalk. DIFFICULTY: easy. BABY: YES with hand-holding. All 4 thermal types — bubbling mud, fumaroles, hot springs, geysers.",lat:44.5510,lng:-110.8046,badges:["must","see","hike"],must:true,wiki:"Fountain_Paint_Pot",toddler:"KID FAVORITE — plop-plop mud pots. Boardwalk has no railings in spots; hold hand tight or use carrier."},
+      {time:"9:15 AM",name:"Firehole Lake Drive (SKIP-able)",desc:"WALK: none, drive only. 3-mi one-way loop past White Dome, Great Fountain, Firehole Lake. HONEST: adds 25 min. SKIP unless Great Fountain is predicted to erupt within your window — Grand Prismatic + Upper Basin have better geysers.",lat:44.5320,lng:-110.7877,badges:["drive","see","optional"],optional:true,wiki:"Firehole_Lake_Drive",toddler:"Skip. Save the time for Old Faithful."},
+      {time:"10:00 AM",name:"★ Grand Prismatic Spring (Midway)",desc:"WALK: 0.8 mi loop, flat boardwalk. DIFFICULTY: easy. BABY: yes with carrier. Includes Excelsior Geyser + Turquoise Pool. Steam often obscures the color — see the OVERLOOK next.",lat:44.5251,lng:-110.8381,badges:["must","see","photo"],must:true,wiki:"Grand_Prismatic_Spring",toddler:"CARRIER MANDATORY — narrow boardwalk over boiling water."},
+      {time:"11:00 AM",name:"★ Grand Prismatic Overlook (Fairy Falls TH)",desc:"HIKE: 1.2 mi RT, ~105 ft elevation gain via switchback. DIFFICULTY: easy-moderate. BABY: yes IN CARRIER only. This is the aerial rainbow view. NOT the full 4.5 mi Fairy Falls hike — turn back at overlook.",lat:44.5192,lng:-110.8330,badges:["must","hike","photo"],must:true,wiki:"Fairy_Falls_(Wyoming)",toddler:"Rotate carrier between adults for the climb. Overlook is fenced."},
+      {time:"12:15 PM",name:"Nap slot — drive to Old Faithful (15 min)",desc:"Kid sleeps in car. Park at Old Faithful lot, keep AC running or one adult stays with sleeping kid.",lat:44.4605,lng:-110.8281,badges:["nap","drive"],wiki:null,toddler:"12:15–2:00 window. Grandfather/brother rotate car duty."},
+      {time:"1:30 PM",name:"★ Old Faithful eruption",desc:"WALK: 50 ft to benches. DIFFICULTY: none. BABY: yes. Check prediction board at Visitor Ed Center — intervals ~94 min ±10. Junior Ranger booklet available inside VC for future keepsake.",lat:44.4605,lng:-110.8281,badges:["must","see"],must:true,wiki:"Old_Faithful",toddler:"Loud initial eruption may startle — hold close. Benches have space for blanket."},
+      {time:"2:30 PM",name:"★ Upper Geyser Basin — shortened loop",desc:"HIKE: ~2 mi RT to Morning Glory Pool (or 1 mi RT if you turn back at Grand/Castle). DIFFICULTY: easy, flat boardwalk. BABY: yes with carrier rotation. Sees: Castle, Grand, Beehive, Grotto, Morning Glory.",lat:44.4667,lng:-110.8419,badges:["must","hike","see"],must:true,wiki:"Upper_Geyser_Basin",toddler:"Turn back at Grand Geyser if kid fussy (0.75 mi in). Morning Glory is worth pushing to if you have energy."},
+      {time:"5:00 PM",name:"Black Sand Basin (SKIP-able)",desc:"WALK: 0.5 mi boardwalk loop. DIFFICULTY: easy. BABY: yes. Emerald Pool + Sunset Lake. HONEST: pretty but you've already seen 5 thermal basins today. SKIP if kid is fried.",lat:44.4728,lng:-110.8542,badges:["see","optional"],optional:true,wiki:"Black_Sand_Basin",toddler:"Skip if energy low — head straight to dinner."},
+      {time:"5:20 PM",name:"Biscuit Basin (CHECK ACCESS)",desc:"WALK: 0.5 mi loop. Sapphire Pool + Jewel Geyser. CLOSED since July 2024 hydrothermal explosion. Verify Aug 2026 reopening before driving in — otherwise SKIP.",lat:44.4855,lng:-110.8535,badges:["see","optional"],optional:true,wiki:"Biscuit_Basin",toddler:"If closed, no loss — you've seen better colors at Grand Prismatic."},
+      {time:"6:30 PM",name:"West Yellowstone dinner",desc:"Serenity Bistro (family-friendly) OR Firehole Bar & Grill. Grab groceries at Market Place for tomorrow.",lat:44.6621,lng:-111.1041,badges:["eat","shop"],wiki:"West_Yellowstone,_Montana",toddler:"High chairs at both. Big day = early crash."},
+      {time:"7:45 PM",name:"Back to Terranova",desc:"Bath + bed.",lat:44.6410,lng:-111.0997,badges:["stay"],wiki:null,toddler:"Everyone crashes."}
+    ]
+  },
+  {
+    label:"Day 3",date:"Wed, Aug 27",
+    subtitle:"Canyon + Mud Volcano + Norris (biggest driving day)",
+    stats:{drive:"4 hrs",hike:"~2 mi",wake:"6:45 AM"},
+    color:"#f59e0b",
+    stops:[
+      {time:"6:45 AM",name:"Depart Terranova → Canyon",desc:"Long drive: West → Madison → Norris → Canyon (~1.5 hr, 55 mi). Early start beats bison jams.",lat:44.6577,lng:-111.0940,badges:["drive"],wiki:null,toddler:"Cooler with lunch — Canyon Village lunch is meh. Extra snacks."},
+      {time:"7:45 AM",name:"Beryl Spring (SKIP-able)",desc:"WALK: none, roadside. Small steamy pool between Madison and Norris. HONEST: just a small blue steaming pool visible for 30 seconds. SKIP unless you're already stopped anyway.",lat:44.6817,lng:-110.7513,badges:["see","optional"],optional:true,wiki:"Beryl_Spring",toddler:"Skip. Not worth unbuckling car seat for."},
+      {time:"8:30 AM",name:"Norris Geyser Basin — Porcelain Basin",desc:"HIKE: 0.75 mi loop, mostly downhill then back up. DIFFICULTY: easy. BABY: yes with carrier. Bright white, steaming — otherworldly. SKIP the Back Basin (1.5 mi) — too much walking today.",lat:44.7259,lng:-110.7031,badges:["see","hike"],wiki:"Norris_Geyser_Basin",toddler:"Doing Norris on the way IN saves backtrack. Carrier for boardwalk."},
+      {time:"9:15 AM",name:"Steamboat Geyser viewpoint",desc:"WALK: from Porcelain Basin loop, no extra trail. Tallest active geyser in the world (300+ ft when it erupts). Eruptions unpredictable — you likely see steam only, still cool.",lat:44.7237,lng:-110.7038,badges:["see"],wiki:"Steamboat_Geyser",toddler:"View from the end of Porcelain Basin loop."},
+      {time:"10:00 AM",name:"Drive to Canyon Village",desc:"~30 min east on Norris-Canyon Rd.",lat:44.7340,lng:-110.4937,badges:["drive"],wiki:null,toddler:"Snack + water break in car."},
+      {time:"10:30 AM",name:"★ Grand Canyon — SOUTH RIM (right turn strategy)",desc:"South Rim Drive first (as you requested — lowest elevation, then work north). Park at each overlook — these are separate short walks, not one continuous trail.",lat:44.7203,lng:-110.4805,badges:["drive"],wiki:"Grand_Canyon_of_the_Yellowstone",toddler:"~1 hr for full south rim. Kid in and out of carrier."},
+      {time:"10:40 AM",name:"★ Artist Point (South Rim)",desc:"WALK: 200 ft paved. DIFFICULTY: none. BABY: yes. THE iconic Lower Falls view — postcard shot.",lat:44.7203,lng:-110.4805,badges:["must","see","photo"],must:true,wiki:"Artist_Point",toddler:"Fenced overlook. Safe."},
+      {time:"11:10 AM",name:"Brink of Lower Falls",desc:"HIKE: 0.7 mi RT, 600 ft elevation loss/gain via steep paved switchbacks. DIFFICULTY: MODERATE-HARD on return. BABY: only with strong adult carrier + rotation. SKIP if group tired — Artist Point view is superior anyway.",lat:44.7195,lng:-110.4915,badges:["hike","photo"],wiki:"Lower_Yellowstone_Falls",toddler:"Grandfather may prefer to wait at top. Brother + you handle carrier."},
+      {time:"12:00 PM",name:"NORTH RIM DRIVE — Brink of Upper Falls",desc:"WALK: 0.2 mi paved. DIFFICULTY: easy. BABY: yes. Top of 109-ft Upper Falls, fenced. Quick.",lat:44.7141,lng:-110.4972,badges:["see","photo"],wiki:"Upper_Yellowstone_Falls",toddler:"Kid can walk this."},
+      {time:"12:15 PM",name:"Lookout Point (North Rim)",desc:"WALK: 0.1 mi paved. DIFFICULTY: easy. BABY: yes. Different angle on Lower Falls.",lat:44.7266,lng:-110.4834,badges:["see","photo"],wiki:"Grand_Canyon_of_the_Yellowstone",toddler:"Fenced. Quick 10 min."},
+      {time:"12:30 PM",name:"Grand View (SKIP option)",desc:"WALK: 0.1 mi. Similar view to Lookout Point. SKIP unless you have time and energy — no unique perspective vs earlier stops.",lat:44.7245,lng:-110.4783,badges:["see","optional"],optional:true,wiki:null,toddler:"Skip. Move on to lunch."},
+      {time:"12:45 PM",name:"Canyon Village lunch + nap start",desc:"Canyon Lodge Eatery — wraps, salads, pizza. Meh but only option. Then drive south, kid naps.",lat:44.7340,lng:-110.4937,badges:["eat","nap"],wiki:"Canyon_Village_Historic_District",toddler:"High chairs. Feed then buckle in for nap."},
+      {time:"2:00 PM",name:"★ Hayden Valley wildlife drive",desc:"WALK: none, drive slowly with pullouts. 20 mi of open valley south of Canyon. Bison herds guaranteed, grizzlies possible, sometimes wolves. Drive south from Canyon.",lat:44.6600,lng:-110.4640,badges:["must","wildlife","photo"],must:true,wiki:"Hayden_Valley",toddler:"Windows up around wildlife. Binoculars for grandfather. Kid can watch from car seat."},
+      {time:"3:15 PM",name:"★ Mud Volcano + Dragon's Mouth Spring",desc:"HIKE: 0.6 mi loop, some stairs. DIFFICULTY: easy. BABY: yes with hand-holding or carrier. Bubbling cauldrons + roaring steam cave. Southern turnaround point — head back north from here.",lat:44.6259,lng:-110.4351,badges:["must","see"],must:true,wiki:"Mud_Volcano_Area",toddler:"KID FAVORITE — noises + drama. Sulfur smell strong; some kids fussy."},
+      {time:"4:30 PM",name:"Drive back — Gibbon Falls",desc:"WALK: 0.1 mi paved. DIFFICULTY: easy. BABY: yes. 84-ft waterfall roadside overlook on drive back to Terranova (via Canyon → Norris → Madison).",lat:44.6497,lng:-110.7867,badges:["see","photo"],wiki:"Gibbon_Falls",toddler:"Fenced. 5-min stop."},
+      {time:"6:00 PM",name:"Back to Terranova",desc:"Dinner in cabin. Everyone will be exhausted from long day. Roaring Mountain is skipped today — you'll drive past it Day 6 if going via Norris.",lat:44.6410,lng:-111.0997,badges:["stay","eat"],wiki:null,toddler:"Early bath, early bed."}
+    ]
+  },
+  {
+    label:"Day 4",date:"Thu, Aug 28",
+    subtitle:"Transfer to Teton — with Snake River Float adventure",
+    stats:{drive:"4.5 hrs (transfer)",hike:"~1 mi",wake:"7:30 AM"},
+    color:"#8b5cf6",
+    stops:[
+      {time:"7:30 AM",name:"Checkout Terranova",desc:"Pack up, breakfast in cabin. Head south into park.",lat:44.6410,lng:-111.0997,badges:["stay","drive"],wiki:null,toddler:"Slow morning. Luggage + car seat + toddler = allow 30 min."},
+      {time:"9:30 AM",name:"★ West Thumb Geyser Basin",desc:"HIKE: 0.5 mi lakeside loop, flat boardwalk. DIFFICULTY: easy. BABY: yes with carrier. Thermal pools draining directly into Yellowstone Lake — unique combo.",lat:44.4168,lng:-110.5727,badges:["must","see","photo"],must:true,wiki:"West_Thumb_Geyser_Basin",toddler:"One of most kid-friendly basins. Fishing Cone visible at lake edge."},
+      {time:"10:30 AM",name:"Yellowstone Lake — Grant Village pullout",desc:"WALK: to shoreline, 100 ft. DIFFICULTY: none. Huge alpine lake — 132 sq mi.",lat:44.3900,lng:-110.5730,badges:["see"],wiki:"Yellowstone_Lake",toddler:"Let kid throw pebbles at water. 15-min break."},
+      {time:"11:00 AM",name:"Lewis Lake (SKIP-able)",desc:"WALK: none, pullout. Similar lake to Yellowstone Lake but smaller. HONEST: skip unless kid needs another break — you've seen big lakes.",lat:44.3009,lng:-110.6215,badges:["see","optional"],optional:true,wiki:"Lewis_Lake_(Wyoming)",toddler:"Skip. Move on."},
+      {time:"11:30 AM",name:"Lewis Falls (SKIP-able)",desc:"WALK: 100 ft roadside. 30-ft waterfall. HONEST: small waterfall you can see from car. SKIP — you have Gibbon Falls, Tower Falls, Undine Falls on other days.",lat:44.2900,lng:-110.6180,badges:["see","photo","optional"],optional:true,wiki:"Lewis_Falls_(Wyoming)",toddler:"Skip. Waterfall overload on this trip already."},
+      {time:"12:00 PM",name:"NAP — drive Rockefeller Parkway",desc:"South Entrance → John D. Rockefeller Pkwy into Grand Teton. Beautiful drive.",lat:44.1350,lng:-110.6660,badges:["nap","drive"],wiki:"John_D._Rockefeller_Jr._Memorial_Parkway",toddler:"1-hr driving nap window."},
+      {time:"1:15 PM",name:"Colter Bay + lunch",desc:"WALK: to lakeshore, 200 ft. DIFFICULTY: easy. Marina + swim beach + Indian Arts Museum. Lunch at Ranch House.",lat:43.9033,lng:-110.6413,badges:["see","eat"],wiki:"Colter_Bay_Village",toddler:"Sandy beach for wading. Nice break after nap."},
+      {time:"2:30 PM",name:"Mount Moran Viewpoint (SKIP-able)",desc:"WALK: none, pullout. Dramatic view of Mt Moran (12,605 ft). HONEST: you'll see Mt Moran from Oxbow Bend (Day 5), Signal Mountain summit (Day 5), and Colter Bay. SKIP this pullout.",lat:43.8500,lng:-110.6600,badges:["see","photo","optional"],optional:true,wiki:"Mount_Moran",toddler:"Skip — redundant view."},
+      {time:"3:00 PM",name:"★ ADVENTURE: Snake River Scenic Float",desc:"BOOK AHEAD. 2-3 hr calm-water float from Deadman's Bar or Pacific Creek. Barker-Ewing, Solitude, or Triangle X operate scenic floats (NOT whitewater). Some allow lap infants — call ahead to confirm 16-mo policy. Wildlife (eagles, moose, beaver) from river-level.",lat:43.8000,lng:-110.5400,badges:["must","see","wildlife","optional"],must:true,wiki:"Snake_River_(Adams)",toddler:"Verify age/weight policy before booking. Life jackets provided (infant-size may not be — bring your own). SKIP if operator won't take kid — do it Aug 29 morning instead."},
+      {time:"6:00 PM",name:"Snake River Overlook",desc:"WALK: 100 ft paved. DIFFICULTY: none. Ansel Adams' famous 1942 shot.",lat:43.7842,lng:-110.5540,badges:["must","photo"],must:true,wiki:"Snake_River_(Adams)",toddler:"Fenced overlook. Easy."},
+      {time:"6:30 PM",name:"Glacier View Turnout (SKIP-able)",desc:"WALK: none, roadside. Panoramic Teton view with Teton Glacier. HONEST: another Teton viewpoint. Snake River Overlook (just before) is the iconic one. SKIP unless doing it for the specific Teton Glacier photo.",lat:43.7900,lng:-110.7800,badges:["see","photo","optional"],optional:true,wiki:"Teton_Range",toddler:"Skip — you'll see this same panorama from Signal Mountain Day 5."},
+      {time:"6:45 PM",name:"★ Mormon Row (before check-in)",desc:"WALK: dirt paths, wide open. DIFFICULTY: easy. Moulton Barns with Tetons behind — best in late afternoon light. Doing this BEFORE Wilson check-in avoids a 30-min backtrack.",lat:43.6640,lng:-110.6668,badges:["must","photo"],must:true,wiki:"Mormon_Row_Historic_District",toddler:"Kid can toddle in the wide-open dirt lot. Iconic photo."},
+      {time:"7:45 PM",name:"Check in — Wilson",desc:"3940 S Lake Creek Dr Unit 3. Groceries at Aspens Market on drive in. Dinner in — kid is done.",lat:43.5002,lng:-110.8798,badges:["stay","shop","eat"],wiki:"Wilson,_Wyoming",toddler:"Bath, bed. Long transfer day."}
+    ]
+  },
+  {
+    label:"Day 5",date:"Fri, Aug 29",
+    subtitle:"Teton Core — Jenny Lake + Jackson (low driving, big fun)",
+    stats:{drive:"1.5 hrs",hike:"~2.5 mi",wake:"6:00 AM"},
+    color:"#ec4899",
+    stops:[
+      {time:"6:00 AM",name:"Schwabacher Landing — SUNRISE",desc:"HIKE: 0.5 mi flat gravel path along Snake River. DIFFICULTY: easy. BABY: yes with carrier. Best Teton reflection shot at first light. Beavers + moose possible.",lat:43.7153,lng:-110.6725,badges:["must","photo","wildlife"],must:true,wiki:"Snake_River_(Adams)",toddler:"Kid still sleepy — carrier easy. Golden hour magic."},
+      {time:"7:15 AM",name:"Moose-Wilson Road — wildlife drive",desc:"WALK: none, drive only. Best chance for moose in the willows. Check 2026 construction status — parts may be closed.",lat:43.6350,lng:-110.7580,badges:["wildlife","drive","photo"],wiki:"Moose-Wilson_Road",toddler:"Stay in car. Binoculars for grownups."},
+      {time:"8:15 AM",name:"Chapel of the Transfiguration",desc:"WALK: 100 ft. DIFFICULTY: none. Tiny log chapel with an altar window framing the Tetons. 10-min stop.",lat:43.6592,lng:-110.7181,badges:["see","photo"],wiki:"Chapel_of_the_Transfiguration_(Moose,_Wyoming)",toddler:"Quiet — hold or stay outside if fussy."},
+      {time:"8:45 AM",name:"★ Jenny Lake — arrive before 9:30",desc:"Parking fills by 10 AM. Buy passenger boat shuttle tickets ($20/adult round trip). Kids under 2 free.",lat:43.7533,lng:-110.7214,badges:["must","drive"],must:true,wiki:"Jenny_Lake",toddler:"Diaper change before boat. Reserve online if possible."},
+      {time:"9:15 AM",name:"Jenny Lake Boat Shuttle",desc:"10-min boat ride across the lake — saves 4+ miles of hiking each way.",lat:43.7534,lng:-110.7215,badges:["see"],wiki:"Jenny_Lake",toddler:"Adult must hold kid. Bring own infant PFD if you have one — theirs may be adult only."},
+      {time:"9:30 AM",name:"★ Hidden Falls",desc:"HIKE: 1 mi RT from boat dock, 100 ft gain. DIFFICULTY: easy. BABY: yes with carrier. 100-ft waterfall in the forest.",lat:43.7580,lng:-110.7500,badges:["must","hike","photo"],must:true,wiki:"Hidden_Falls_(Wyoming)",toddler:"Rocky in sections. Kid-friendly with carrier."},
+      {time:"10:15 AM",name:"Inspiration Point",desc:"HIKE: +0.8 mi one-way past Hidden Falls, 400 ft gain, steep switchbacks. DIFFICULTY: MODERATE. BABY: carrier only, adult must be fit. Panoramic Jenny Lake view.",lat:43.7592,lng:-110.7495,badges:["hike","photo"],wiki:"Inspiration_Point_(Wyoming)",toddler:"Grandfather can wait at Hidden Falls. Brother + you handle carrier. SKIP if group is not up for it — Hidden Falls is beautiful on its own."},
+      {time:"11:30 AM",name:"Boat back + Jenny Lake Scenic Drive",desc:"WALK: none. One-way scenic loop around the lake with viewpoints of Cathedral Group. Lunch picnic at Jenny Lake picnic area.",lat:43.7600,lng:-110.7250,badges:["drive","eat","photo"],wiki:"Jenny_Lake",toddler:"Picnic lunch avoids the 30-min Wilson round-trip."},
+      {time:"12:30 PM",name:"NAP in car → String Lake",desc:"Kid naps in car seat during 5-min drive to String Lake picnic area. Adult stays in shaded car with sleeping kid; others prep swim gear.",lat:43.7847,lng:-110.7345,badges:["nap","drive"],wiki:null,toddler:"Car nap 12:30–2:00. No wasted driving vs returning to Wilson."},
+      {time:"2:00 PM",name:"★ String Lake — WADING",desc:"HIKE: 0.5 mi lakeshore, flat. DIFFICULTY: easy. BABY: yes. Warm shallow water — kids can wade at the sandy beach. One of the few places for family swim in Teton.",lat:43.7847,lng:-110.7345,badges:["must","see","swim"],must:true,wiki:"String_Lake",toddler:"Bring swim diaper, towel, hat. Water is COLD but shallow warms in sun."},
+      {time:"3:30 PM",name:"Leigh Lake / Lakeshore Trail (SKIP-able)",desc:"HIKE: 0.5 mi flat lakeshore. DIFFICULTY: easy. BABY: yes. HONEST: nearly identical to String Lake next door. SKIP if kid enjoyed String Lake wading — go home for early dinner.",lat:43.8020,lng:-110.7355,badges:["hike","see","optional"],optional:true,wiki:"Leigh_Lake",toddler:"Skip. String Lake covers the same lake vibe."},
+      {time:"4:30 PM",name:"Oxbow Bend",desc:"WALK: 100 ft, roadside. DIFFICULTY: none. Snake River bend with Mt Moran reflection. Pelicans, osprey, sometimes moose.",lat:43.8653,lng:-110.5556,badges:["must","photo","wildlife"],must:true,wiki:"Oxbow_Bend",toddler:"Binoculars. Best evening light."},
+      {time:"5:00 PM",name:"Signal Mountain Summit Drive",desc:"WALK: 200 ft at top. 5-mi one-way summit road (7,720 ft). 360° panoramic view of Teton Range + Jackson Hole valley.",lat:43.8325,lng:-110.5925,badges:["must","see","photo"],must:true,wiki:"Signal_Mountain_(Wyoming)",toddler:"Windy at top — jacket/hat. Fenced overlooks."},
+      {time:"6:30 PM",name:"Jackson Town Square + eats",desc:"WALK: town square is stroller-friendly. Elk antler arches at each corner. Cowboy shootout Mon-Sat 6 PM in summer (verify 2026).",lat:43.4799,lng:-110.7624,badges:["shop","photo"],wiki:"Jackson,_Wyoming",toddler:"Wide plazas. Antler arch photo — mandatory!"},
+      {time:"7:00 PM",name:"Moo's Gourmet Ice Cream",desc:"Local favorite off Town Square. Small-batch flavors — try huckleberry.",lat:43.4793,lng:-110.7616,badges:["eat"],wiki:null,toddler:"Kid scoops. Bench seating."},
+      {time:"7:30 PM",name:"Nutella waffle — Persephone Bakery",desc:"Jackson signature. Persephone Bakery (across from Town Square) makes it best.",lat:43.4796,lng:-110.7620,badges:["eat"],wiki:null,toddler:"Sharing size."},
+      {time:"8:00 PM",name:"Jackson Hole Aerial Tram (SKIP with kid)",desc:"12-min tram to Rendezvous Mtn (10,450 ft). Corbet's Cabin waffles at top. HONEST: skip with 16-mo — altitude jump is 6,400 ft in 12 min. Adult ear/head pressure is bad; toddler ears worse. If you must, keep visit under 20 min.",lat:43.5872,lng:-110.8283,badges:["see","optional"],optional:true,wiki:"Jackson_Hole_Aerial_Tram",toddler:"HONEST SKIP. Not worth potential toddler ear pain/altitude sickness."}
+    ]
+  },
+  {
+    label:"Day 6",date:"Sat, Aug 30",
+    subtitle:"Wilson → Gardiner via East + North (long transfer)",
+    stats:{drive:"5.5 hrs",hike:"~1.5 mi",wake:"6:30 AM"},
+    color:"#06b6d4",
+    stops:[
+      {time:"6:30 AM",name:"Checkout Wilson",desc:"Pack up, quick breakfast. This IS the biggest driving day — leave early.",lat:43.5002,lng:-110.8798,badges:["stay","drive"],wiki:null,toddler:"iPad + extra snacks + comfort blanket in car."},
+      {time:"7:30 AM",name:"Taggart Lake Trail (SKIP-able)",desc:"HIKE: 3 mi RT, 400 ft gain. DIFFICULTY: moderate. BABY: carrier only, 2-adult rotation. HONEST SKIP recommendation — you already have a long drive. Skip and save energy.",lat:43.7066,lng:-110.7310,badges:["hike","photo","optional"],optional:true,wiki:"Taggart_Lake",toddler:"SKIP. Nothing here you haven't seen on the Teton scenic loop."},
+      {time:"9:30 AM",name:"Enter Yellowstone — South Entrance",desc:"Same 7-day pass covers re-entry. Head northeast.",lat:44.1350,lng:-110.6660,badges:["drive"],wiki:"Yellowstone_National_Park",toddler:"Kid can nap on drive to Fishing Bridge."},
+      {time:"10:45 AM",name:"Bridge Bay",desc:"WALK: 200 ft to marina. Small marina on Yellowstone Lake. Launch point for boat cruises.",lat:44.5390,lng:-110.4370,badges:["see"],wiki:"Bridge_Bay,_Yellowstone_National_Park",toddler:"Kid loves boats — even just watching from dock."},
+      {time:"11:00 AM",name:"★ Yellowstone Lake Boat Tour (optional adventure)",desc:"BOOK AHEAD (2026 season TBD). 1-hr scenic cruise on the historic Lake Queen II from Bridge Bay. Ranger narration, geology, wildlife. ~$25/adult.",lat:44.5390,lng:-110.4370,badges:["must","see","optional"],optional:true,wiki:null,toddler:"Verify infant policy + life jackets. If skipping, keep going north."},
+      {time:"11:15 AM",name:"Fishing Bridge",desc:"WALK: 0.2 mi across bridge, flat. DIFFICULTY: easy. BABY: yes. Historic bridge over Yellowstone River outlet — no fishing allowed. Trout visible below.",lat:44.5643,lng:-110.3736,badges:["see"],wiki:"Fishing_Bridge",toddler:"Fenced. Point out fish."},
+      {time:"11:45 AM",name:"Lake Butte Overlook",desc:"WALK: 200 ft from parking. DIFFICULTY: easy. BABY: yes. Panoramic view of Yellowstone Lake. Bear country — bring binoculars. This satisfies your \"Pelican Valley wildlife\" wish without the 30-min spur detour east.",lat:44.5450,lng:-110.2932,badges:["see","wildlife","photo"],wiki:"Yellowstone_Lake",toddler:"Wide open. Safe. Note: Pelican Valley trail itself is grizzly backcountry — not baby-safe. Lake Butte gives you the same landscape."},
+      {time:"12:30 PM",name:"NAP + drive to Canyon lunch",desc:"Head north on Grand Loop Rd. Kid sleeps. Lunch at Canyon Lodge.",lat:44.7340,lng:-110.4937,badges:["nap","eat","drive"],wiki:null,toddler:"Nap 12:30–2:30 in car seat."},
+      {time:"2:45 PM",name:"Tower-Roosevelt Junction",desc:"WALK: boardwalk around lodge, wooden walks. DIFFICULTY: easy. Historic Roosevelt Lodge, Old West feel.",lat:44.9148,lng:-110.4139,badges:["see"],wiki:"Roosevelt_Lodge_Historic_District",toddler:"Easy walking. Confirm evening cookout booking if doing it Aug 31."},
+      {time:"3:00 PM",name:"Tower Fall",desc:"WALK: 100 ft paved to overlook. DIFFICULTY: easy. BABY: yes. 132-ft waterfall. Base trail closed multi-year — overlook only.",lat:44.8934,lng:-110.3873,badges:["see","photo"],wiki:"Tower_Fall",toddler:"Fenced. Quick 10 min."},
+      {time:"3:15 PM",name:"Calcite Springs Overlook",desc:"WALK: 0.1 mi paved. DIFFICULTY: easy. BABY: yes. Dramatic canyon view with columnar basalt cliffs + steaming thermals on the river below.",lat:44.9053,lng:-110.4066,badges:["see"],wiki:"Calcite_Springs",toddler:"Fenced. Easy."},
+      {time:"4:00 PM",name:"Undine Falls Overlook",desc:"WALK: none, roadside pullout. 60-ft two-tier waterfall.",lat:44.9420,lng:-110.6360,badges:["see","photo"],wiki:"Undine_Falls",toddler:"Drive-by."},
+      {time:"4:15 PM",name:"Golden Gate Canyon",desc:"WALK: none, scenic drive. Narrow canyon with golden cliffs — engineered roadway from 1885.",lat:44.8985,lng:-110.7245,badges:["drive","see"],wiki:"Golden_Gate_(Wyoming)",toddler:"Windshield tourism."},
+      {time:"4:45 PM",name:"★ Mammoth Hot Springs — Terraces",desc:"HIKE: 1 mi total on boardwalks with stairs (Lower Terrace loop) OR drive Upper Terrace 1.5 mi loop. DIFFICULTY: moderate stairs. BABY: carrier essential. Sees Palette Spring, Minerva Terrace, Cleopatra Terrace.",lat:44.9688,lng:-110.7107,badges:["must","see","photo","hike"],must:true,wiki:"Mammoth_Hot_Springs",toddler:"Stairs = carrier not stroller. Elk on lawns in evening."},
+      {time:"5:45 PM",name:"Canary Spring Terrace",desc:"WALK: part of Upper Terrace loop. Bright yellow bacterial mats. Same complex as Mammoth — combine.",lat:44.9679,lng:-110.7124,badges:["see","photo"],wiki:"Mammoth_Hot_Springs",toddler:"Combine with Mammoth visit."},
+      {time:"6:00 PM",name:"Liberty Cap",desc:"WALK: 20 ft from car. 37-ft extinct hot spring cone at base of terraces. 5-min stop.",lat:44.9723,lng:-110.7091,badges:["see"],wiki:"Liberty_Cap_(Yellowstone)",toddler:"Roadside."},
+      {time:"6:30 PM",name:"★ Roosevelt Arch",desc:"WALK: drive under + get out for photos. Historic 1903 stone arch marking north entrance. \"For the Benefit and Enjoyment of the People.\"",lat:45.0287,lng:-110.7079,badges:["must","photo"],must:true,wiki:"Roosevelt_Arch",toddler:"Great group photo. Walk under."},
+      {time:"7:00 PM",name:"Check in — Yellowstone Sunshine (Gardiner)",desc:"25 White Ln. Dinner: Iron Horse Bar & Grill, Wonderland Cafe, or Yellowstone Grill. Verify Aug 31 hot springs + cookout bookings tonight.",lat:45.0308,lng:-110.7043,badges:["stay","eat"],wiki:"Gardiner,_Montana",toddler:"Small town. Easy walking after dinner. Early bed after long day."}
+    ]
+  },
+  {
+    label:"Day 7",date:"Sun, Aug 31",
+    subtitle:"Lamar Wildlife + Hot Springs Swim + Adventure",
+    stats:{drive:"3 hrs",hike:"~1.5 mi",wake:"5:30 AM"},
+    color:"#ef4444",
+    stops:[
+      {time:"5:30 AM",name:"PRE-DAWN → Lamar Valley",desc:"Wolves and grizzlies most active at first light. Coffee thermos, bundle kid, drive east through Mammoth → Tower Junction → Lamar (~1 hr).",lat:45.0308,lng:-110.7043,badges:["drive"],wiki:null,toddler:"Kid usually sleeps through in car seat."},
+      {time:"6:30 AM",name:"★ Lamar Valley wildlife safari",desc:"WALK: from car at pullouts only. \"Serengeti of North America\" — wolf, grizzly, bison, pronghorn, coyote, elk. Cruise pullouts slowly for 1.5–2 hrs. Look for spotting-scope crowds — that's where the wolves are.",lat:44.9000,lng:-110.2200,badges:["must","wildlife","photo"],must:true,wiki:"Lamar_Valley",toddler:"Binoculars mandatory. Bear spray required if you get out. Kid safest in car."},
+      {time:"8:30 AM",name:"Trout Lake",desc:"HIKE: 1.2 mi loop, 150 ft steep gain first 200 yards then flat. DIFFICULTY: moderate at start, easy after. BABY: yes IN CARRIER. Otters sometimes seen — small mountain lake.",lat:44.8983,lng:-110.1252,badges:["hike","wildlife"],wiki:"Trout_Lake_(Yellowstone)",toddler:"First hill is steep — grandfather stays at car if not fit. You + brother handle carrier."},
+      {time:"9:45 AM",name:"Yellowstone River Picnic Area (SKIP-able)",desc:"HIKE: 4 mi RT on Yellowstone River Picnic Area Trail — grand overlook of the canyon. DIFFICULTY: moderate. TOO LONG for toddler. Skip.",lat:44.8930,lng:-110.4030,badges:["hike","optional"],optional:true,wiki:null,toddler:"SKIP — too long."},
+      {time:"10:30 AM",name:"Back to Gardiner — late breakfast",desc:"Wonderland Cafe (best in town) or Yellowstone Grill. Big breakfast — you've been up since 5:30.",lat:45.0308,lng:-110.7043,badges:["eat"],wiki:"Gardiner,_Montana",toddler:"Kid-friendly menus. Refuel."},
+      {time:"12:00 PM",name:"NAP at Yellowstone Sunshine",desc:"Back to rental for a proper 2-hr crib nap. Adults nap too — you've earned it.",lat:45.0308,lng:-110.7043,badges:["nap","stay"],wiki:null,toddler:"Real bed nap. Full recharge."},
+      {time:"2:30 PM",name:"★ Yellowstone Hot Springs SWIM",desc:"WALK: parking to pool 200 ft. Commercial mineral pool — 24 E Gate Rd, Gardiner. Warm (98–104°F) + cold plunge. SAFE, LEGAL swimming option (unlike in-park thermals).",lat:45.0389,lng:-110.7539,badges:["must","swim"],must:true,wiki:null,toddler:"Warmer pool safe for kid. SWIM DIAPER REQUIRED. Verify hours + toddler policy — some hot springs disallow under-3. Bring towels, water shoes."},
+      {time:"5:00 PM",name:"Back to rental — freshen up + dinner",desc:"Quick rinse, dinner in Gardiner or grab burgers to eat before evening activity.",lat:45.0308,lng:-110.7043,badges:["stay","eat"],wiki:null,toddler:"Simple food. Kid may be tired from swim."},
+      {time:"6:30 PM",name:"★ ADVENTURE — pick ONE (book ahead!)",desc:"OPTION A: Old West Cookout — 45-min covered wagon to Roosevelt Lodge for steak/beans dinner. ~4 hrs total incl 2 hrs driving Gardiner↔Roosevelt. OPTION B: Yellowstone Yellow Bus Tour — 1930s open-top bus, 1-3 hrs, ranger-guided. OPTION C: Yellowstone Raft Company (Gardiner) — family float on Yellowstone River, in town so NO extra driving. OPTION D: SKIP all — casual dinner in Gardiner, kid to bed. HONEST RECOMMENDATION: with a 16-mo after Lamar wake-up, Option D or C is realistic.",lat:44.9148,lng:-110.4139,badges:["must","see","eat","optional"],optional:true,wiki:"Yellow_bus_(national_park_transport)",toddler:"Cookout adds 2 hrs driving + late evening — HONEST SKIP. Raft (Option C) is 0 extra driving. Or just chill Option D."},
+      {time:"9:30 PM",name:"Stargazing at Roosevelt Arch",desc:"WALK: pull off just south of arch. Away from town lights, Milky Way often visible on clear nights.",lat:45.0287,lng:-110.7079,badges:["see","photo","optional"],optional:true,wiki:"Roosevelt_Arch",toddler:"Only if kid is a rare late sleeper. Adults can rotate — one stays with sleeping toddler at rental."}
+    ]
+  },
+  {
+    label:"Day 8",date:"Mon, Sep 1",
+    subtitle:"Gardiner → Bozeman Airport",
+    stats:{drive:"1.5 hrs",hike:"—",wake:"7:00 AM"},
+    color:"#64748b",
+    stops:[
+      {time:"7:00 AM",name:"Breakfast + pack out",desc:"Wonderland Cafe or Iron Horse Bar & Grill for a proper last breakfast. Load the car.",lat:45.0308,lng:-110.7043,badges:["eat","stay"],wiki:"Gardiner,_Montana",toddler:"Kid tolerates restaurants better after a full night's sleep."},
+      {time:"8:30 AM",name:"Depart Gardiner",desc:"Drive US-89 north through Paradise Valley — some of the prettiest scenery of the trip. ~1.5 hrs to Bozeman airport.",lat:45.0287,lng:-110.7079,badges:["drive","photo"],wiki:"Paradise_Valley_(Montana)",toddler:"Last drive — one more nap possible."},
+      {time:"9:30 AM",name:"Paradise Valley scenic pullouts",desc:"Yellowstone River winds beside the road with Absaroka Mountains on the east. Great final views.",lat:45.4500,lng:-110.7500,badges:["see","photo"],optional:true,wiki:"Paradise_Valley_(Montana)",toddler:"Quick stretch stop if kid is fussy."},
+      {time:"11:00 AM",name:"Bozeman Yellowstone Intl Airport",desc:"Return rental car (shuttle to terminal if off-site). Buffer for check-in + security with a toddler.",lat:45.7776,lng:-111.1530,badges:["drive"],wiki:"Bozeman_Yellowstone_International_Airport",toddler:"Kid-friendly airport. TSA family lane. Ready for 12 PM flight."},
+      {time:"12:00 PM",name:"Flight",desc:"Safe travels home!",lat:45.7776,lng:-111.1530,badges:["stay"],wiki:null,toddler:"Pack milk/snack for takeoff — helps ear pressure."}
+    ]
+  }
+];
+
+const BADGE_LABELS={drive:"Drive",eat:"Eat",hike:"Hike",see:"Sight",stay:"Stay",photo:"Photo",shop:"Shop",wildlife:"Wildlife",swim:"Swim",nap:"Nap",optional:"Optional",must:"★ Must See"};
+const isMobile=()=>window.innerWidth<=768;
+let currentView='split';
+const wikiCache={};
+
+const map=L.map('map',{zoomControl:true,attributionControl:!isMobile()}).setView([44.7,-110.6],7);
+L.tileLayer('https://tile.openstreetmap.de/{z}/{x}/{y}.png',{
+  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+  maxZoom:18
+}).addTo(map);
+
+let markers=[];
+let routeLine=null;
+let activeDay=0;
+let highlightedIdx=-1;
+let tappedIdx=-1;
+
+function createMarkerIcon(num,color,highlighted,optional){
+  const base=isMobile()?24:26;
+  const size=highlighted?(base+10):base;
+  const border=highlighted?3:2;
+  const bg=optional&&!highlighted?color+'99':color;
+  const borderStyle=optional&&!highlighted?`border:${border}px dashed #fff`:`border:${border}px solid #fff`;
+  const shadow=highlighted
+    ?`box-shadow:0 0 0 6px ${color}44, 0 4px 12px rgba(0,0,0,.4);transform:scale(1.15)`
+    :`box-shadow:0 2px 6px rgba(0,0,0,.3)`;
+  return L.divIcon({
+    className:'',
+    iconSize:[size,size],
+    iconAnchor:[size/2,size/2],
+    popupAnchor:[0,-size/2-4],
+    html:`<div style="width:${size}px;height:${size}px;border-radius:50%;background:${bg};
+      display:flex;align-items:center;justify-content:center;font-size:${highlighted?13:11}px;
+      font-weight:700;color:#fff;${borderStyle};${shadow};
+      transition:all .3s ease;font-family:'Segoe UI',sans-serif">${num}</div>`
+  });
+}
+
+function renderDay(dayIdx){
+  activeDay=dayIdx;
+  highlightedIdx=-1;
+  tappedIdx=-1;
+  const day=DAYS[dayIdx];
+  document.documentElement.style.setProperty('--day-color',day.color);
+
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===dayIdx));
+  document.querySelectorAll('.toggle-btn.active').forEach(b=>b.style.background=day.color);
+
+  const info=document.getElementById('dayInfo');
+  info.innerHTML=`
+    <div class="day-subtitle">${day.subtitle}</div>
+    <div class="day-stats">
+      <span class="stat"><strong>${day.stats.drive}</strong> driving</span>
+      <span class="stat"><strong>${day.stats.hike}</strong> hiking</span>
+      <span class="stat">Start: <strong>${day.stats.wake}</strong></span>
+    </div>`;
+
+  const stopsEl=document.getElementById('stops');
+  stopsEl.innerHTML='';
+  stopsEl.scrollTop=0;
+
+  day.stops.forEach((stop,i)=>{
+    const card=document.createElement('div');
+    card.className='stop-card'+(stop.optional?' optional':'')+(stop.must?' must':'');
+    card.dataset.idx=i;
+    const badgesHtml=stop.badges.map(b=>
+      `<span class="badge badge-${b}">${BADGE_LABELS[b]}</span>`).join('');
+    const numBg=stop.optional?day.color+'99':day.color;
+    card.innerHTML=`
+      <div class="stop-num" style="background:${numBg}">${i+1}</div>
+      <div class="stop-time">${stop.time}</div>
+      <div class="stop-info">
+        <div class="stop-name">${stop.name}</div>
+        <div class="stop-desc">${stop.desc}</div>
+        <div class="stop-badges">${badgesHtml}</div>
+        <div class="click-hint">Tap for photo & toddler notes ›</div>
+      </div>
+      ${i<day.stops.length-1?'<div class="connector"></div>':''}`;
+
+    card.addEventListener('click',()=>openModal(dayIdx,i));
+
+    if(!isMobile()){
+      card.addEventListener('mouseenter',()=>highlightStop(i));
+      card.addEventListener('mouseleave',()=>unhighlightStop(i));
+    }
+    stopsEl.appendChild(card);
+  });
+
+  markers.forEach(m=>map.removeLayer(m));
+  markers=[];
+  if(routeLine) map.removeLayer(routeLine);
+
+  const coords=[];
+  day.stops.forEach((stop,i)=>{
+    const marker=L.marker([stop.lat,stop.lng],{
+      icon:createMarkerIcon(i+1,day.color,false,stop.optional),
+      zIndexOffset:stop.optional?50:100
+    }).addTo(map);
+    marker.bindPopup(`
+      <div class="popup-name">${stop.name}${stop.optional?' <span style="font-size:10px;color:#94a3b8;font-weight:400">(optional)</span>':''}</div>
+      <div class="popup-time">${stop.time}</div>
+      <div class="popup-desc">${stop.desc}</div>`,
+      {closeButton:isMobile(),maxWidth:isMobile()?200:240,autoPan:true});
+    markers.push(marker);
+    coords.push([stop.lat,stop.lng]);
+
+    marker.on('click',()=>openModal(dayIdx,i));
+
+    if(!isMobile()){
+      marker.on('mouseover',()=>{
+        if(highlightedIdx!==i) highlightStop(i);
+        const card=document.querySelector(`.stop-card[data-idx="${i}"]`);
+        if(card) card.scrollIntoView({behavior:'smooth',block:'nearest'});
+      });
+      marker.on('mouseout',()=>{
+        if(highlightedIdx===i) unhighlightStop(i);
+      });
+    }
+  });
+
+  routeLine=L.polyline(coords,{
+    color:day.color,weight:3,opacity:0.5,dashArray:'8 6',
+    smoothFactor:1.5
+  }).addTo(map);
+
+  const bounds=L.latLngBounds(coords);
+  map.fitBounds(bounds,{padding:isMobile()?[30,30]:[50,50],maxZoom:11});
+
+  setTimeout(()=>map.invalidateSize(),100);
+}
+
+function highlightStop(idx){
+  const day=DAYS[activeDay];
+  const stop=day.stops[idx];
+  highlightedIdx=idx;
+  markers[idx].setIcon(createMarkerIcon(idx+1,day.color,true,stop.optional));
+  markers[idx].setZIndexOffset(1000);
+  markers[idx].openPopup();
+  document.querySelectorAll('.stop-card').forEach((c,i)=>c.classList.toggle('highlighted',i===idx));
+}
+
+function unhighlightStop(idx){
+  const day=DAYS[activeDay];
+  const stop=day.stops[idx];
+  highlightedIdx=-1;
+  markers[idx].setIcon(createMarkerIcon(idx+1,day.color,false,stop.optional));
+  markers[idx].setZIndexOffset(stop.optional?50:100);
+  markers[idx].closePopup();
+  document.querySelectorAll('.stop-card').forEach(c=>c.classList.remove('highlighted'));
+}
+
+function openModal(dayIdx,stopIdx){
+  const day=DAYS[dayIdx];
+  const stop=day.stops[stopIdx];
+  document.documentElement.style.setProperty('--day-color',day.color);
+
+  document.getElementById('modalTime').textContent=`${day.label} · ${stop.time}`;
+  document.getElementById('modalTitle').textContent=stop.name;
+  document.getElementById('modalDesc').textContent=stop.desc;
+
+  const badgesEl=document.getElementById('modalBadges');
+  badgesEl.innerHTML=stop.badges.map(b=>
+    `<span class="badge badge-${b}">${BADGE_LABELS[b]}</span>`).join('');
+
+  const toddlerWrap=document.getElementById('modalToddlerWrap');
+  const toddler=document.getElementById('modalToddler');
+  if(stop.toddler){
+    toddler.textContent=stop.toddler;
+    toddlerWrap.style.display='block';
+  } else {
+    toddlerWrap.style.display='none';
+  }
+
+  const img=document.getElementById('modalImage');
+  const status=document.getElementById('modalImageStatus');
+  const credit=document.getElementById('modalImageCredit');
+  const extractWrap=document.getElementById('modalExtractWrap');
+  const extract=document.getElementById('modalExtract');
+  const wikiLink=document.getElementById('modalWikiLink');
+
+  img.classList.remove('loaded');
+  img.src='';
+  status.style.display='block';
+  status.innerHTML='<div class="spinner"></div><div>Loading photo…</div>';
+  credit.style.display='none';
+  extractWrap.style.display='none';
+  extract.textContent='';
+  wikiLink.style.display='none';
+
+  document.getElementById('modalShowMap').onclick=()=>{
+    closeModal();
+    map.flyTo([stop.lat,stop.lng],13,{duration:0.6});
+    if(currentView==='list') setView('split');
+    setTimeout(()=>{
+      if(tappedIdx>=0&&tappedIdx!==stopIdx) unhighlightStop(tappedIdx);
+      highlightStop(stopIdx);
+      tappedIdx=stopIdx;
+    },700);
+  };
+
+  document.getElementById('modalOverlay').classList.add('open');
+
+  if(stop.wiki){
+    fetchWiki(stop.wiki).then(data=>{
+      if(!data){
+        status.innerHTML='<div>📷 No photo available</div>';
+        return;
+      }
+      const imgUrl=(data.thumbnail&&data.thumbnail.source)||
+                   (data.originalimage&&data.originalimage.source);
+      if(imgUrl){
+        const tempImg=new Image();
+        tempImg.onload=()=>{
+          img.src=imgUrl;
+          img.classList.add('loaded');
+          status.style.display='none';
+          credit.style.display='block';
+        };
+        tempImg.onerror=()=>{
+          status.innerHTML='<div>📷 Photo unavailable</div>';
+        };
+        tempImg.src=imgUrl;
+      } else {
+        status.innerHTML='<div>📷 No photo available</div>';
+      }
+      if(data.extract){
+        extract.textContent=data.extract;
+        extractWrap.style.display='block';
+      }
+      if(data.content_urls&&data.content_urls.desktop){
+        wikiLink.href=data.content_urls.desktop.page;
+        wikiLink.style.display='inline-flex';
+      }
+    }).catch(()=>{
+      status.innerHTML='<div>📷 Photo unavailable</div>';
+    });
+  } else {
+    status.innerHTML='<div>📷 No photo for this stop</div>';
+  }
+}
+
+function fetchWiki(slug){
+  if(wikiCache[slug]) return Promise.resolve(wikiCache[slug]);
+  return fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(slug)}`)
+    .then(r=>r.ok?r.json():null)
+    .then(data=>{wikiCache[slug]=data;return data;})
+    .catch(()=>null);
+}
+
+function closeModal(){
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+document.getElementById('modalClose').addEventListener('click',closeModal);
+document.getElementById('modalOverlay').addEventListener('click',(e)=>{
+  if(e.target.id==='modalOverlay') closeModal();
+});
+document.addEventListener('keydown',(e)=>{
+  if(e.key==='Escape') closeModal();
+});
+
+function setView(view){
+  currentView=view;
+  document.body.classList.remove('view-map','view-list');
+  if(view==='map') document.body.classList.add('view-map');
+  else if(view==='list') document.body.classList.add('view-list');
+
+  document.querySelectorAll('.toggle-btn').forEach(b=>{
+    const isActive=b.dataset.view===view;
+    b.classList.toggle('active',isActive);
+    b.style.background=isActive?DAYS[activeDay].color:'transparent';
+    b.style.color=isActive?'#fff':'#94a3b8';
+  });
+
+  setTimeout(()=>map.invalidateSize(),150);
+}
+
+document.getElementById('btnSplit').addEventListener('click',()=>setView('split'));
+document.getElementById('btnMap').addEventListener('click',()=>setView('map'));
+document.getElementById('btnList').addEventListener('click',()=>setView('list'));
+
+const tabsEl=document.getElementById('tabs');
+DAYS.forEach((day,i)=>{
+  const tab=document.createElement('div');
+  tab.className='tab';
+  tab.innerHTML=`<div style="font-size:13px">${day.label}</div><div class="tab-date" style="font-size:10px;margin-top:2px;color:#94a3b8">${day.date}</div>`;
+  tab.addEventListener('click',()=>renderDay(i));
+  tabsEl.appendChild(tab);
+});
+
+let wasMobile=isMobile();
+window.addEventListener('resize',()=>{
+  const nowMobile=isMobile();
+  if(wasMobile!==nowMobile){
+    wasMobile=nowMobile;
+    if(!nowMobile){
+      document.body.classList.remove('view-map','view-list');
+      currentView='split';
+    }
+    renderDay(activeDay);
+    setTimeout(()=>map.invalidateSize(),200);
+  } else {
+    map.invalidateSize();
+  }
+});
+
+renderDay(0);
+</script>
+</body>
+</html>
