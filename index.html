@@ -790,25 +790,21 @@ document.getElementById('printBtn').addEventListener('click',()=>{
 });
 
 function generatePrintHTML(){
+  function trimDesc(desc){
+    let s=desc.split(/(?:HONEST|BABY|DIFFICULTY|WALK|HIKE):/)[0].trim();
+    if(s.length>140) s=s.substring(0,137)+'...';
+    return s.replace(/\.$/,'');
+  }
+  function stopPrefix(s){
+    if(s.must) return '<span class="mstar">&#9733;</span>';
+    if(s.optional) return '<span class="mopt">[SKIP-able]</span>';
+    return '';
+  }
+
   const daysHtml=DAYS.map((day,i)=>`
     <div class="day">
-      <div class="day-header">
-        <div class="day-title">Day ${i+1} &mdash; ${day.date}</div>
-        <div class="day-subtitle">${day.subtitle}</div>
-        <div class="day-stats">Driving: ${day.stats.drive} &middot; Hiking: ${day.stats.hike} &middot; Start: ${day.stats.wake}</div>
-      </div>
-      ${day.stops.map((s,j)=>`
-        <div class="stop${s.must?' must':''}${s.optional?' optional':''}">
-          <div class="stop-header">
-            <span class="stop-num">${j+1}</span>
-            <span class="stop-time">${s.time}</span>
-            <span class="stop-name">${s.name}</span>
-          </div>
-          <div class="stop-desc">${s.desc}</div>
-          ${s.toddler?`<div class="stop-toddler"><b>Toddler:</b> ${s.toddler}</div>`:''}
-          <div class="stop-badges">${s.badges.map(b=>`<span class="pbadge">${BADGE_LABELS[b]}</span>`).join(' ')}</div>
-        </div>
-      `).join('')}
+      <div class="day-title">Day ${i+1} &mdash; ${day.date} &mdash; ${day.subtitle} <span class="d-stats">(drive ${day.stats.drive.replace(' hrs','h').replace(' hr','h')}, hike ${day.stats.hike})</span></div>
+      ${day.stops.map(s=>`<div class="stop${s.optional?' opt':''}"><span class="t">${s.time}</span> ${stopPrefix(s)}<b>${s.name.replace(/\s*\(SKIP-able\)/i,'').replace(/^★\s*/,'')}</b> &mdash; ${trimDesc(s.desc)}</div>`).join('')}
     </div>
   `).join('');
 
@@ -816,65 +812,43 @@ function generatePrintHTML(){
 <html><head><meta charset="UTF-8">
 <title>Yellowstone &amp; Grand Teton Itinerary</title>
 <style>
-  body{font-family:Georgia,'Times New Roman',serif;max-width:720px;margin:20px auto;padding:15px;color:#111;line-height:1.4}
-  h1{font-size:24pt;margin:0;letter-spacing:-0.5px}
-  .subtitle{color:#555;font-size:11pt;margin-bottom:20px;font-style:italic}
-  .toc{background:#f5f5f5;padding:12px 16px;border-radius:6px;margin-bottom:20px;font-size:10pt}
-  .toc-title{font-weight:bold;margin-bottom:6px}
-  .toc-item{margin:2px 0}
-  .day{page-break-before:always;margin-top:20px}
-  .day:first-of-type{page-break-before:auto}
-  .day-header{border-bottom:2px solid #000;padding-bottom:6px;margin-bottom:10px}
-  .day-title{font-size:16pt;font-weight:bold}
-  .day-subtitle{font-style:italic;color:#555;margin-top:2px;font-size:11pt}
-  .day-stats{font-size:9.5pt;color:#666;margin-top:4px}
-  .stop{border-bottom:1px solid #ddd;padding:8px 0;page-break-inside:avoid}
-  .stop-header{display:flex;gap:8px;align-items:baseline;margin-bottom:2px}
-  .stop-num{background:#333;color:white;border-radius:50%;width:20px;height:20px;
-    display:inline-flex;align-items:center;justify-content:center;font-size:9pt;
-    font-family:Arial,sans-serif;font-weight:bold;flex-shrink:0}
-  .stop-time{font-size:9.5pt;color:#666;min-width:60px;font-family:Arial,sans-serif}
-  .stop-name{font-weight:bold;font-size:11pt}
-  .stop-desc{font-size:10pt;margin-left:30px;margin-top:2px;color:#222}
-  .stop-toddler{font-size:9.5pt;margin-left:30px;margin-top:4px;padding:4px 8px;
-    background:#fff8dc;border-left:3px solid #daa520;color:#5a3f00}
-  .stop-badges{margin-left:30px;margin-top:4px;font-size:8pt}
-  .pbadge{border:1px solid #999;padding:1px 5px;border-radius:3px;margin-right:3px;color:#555;font-family:Arial,sans-serif;text-transform:uppercase;letter-spacing:0.3px}
-  .must{background:#fffbef;padding:8px 8px 8px 12px;border-left:3px solid #daa520}
-  .must .stop-name::before{content:'★ '}
-  .optional{color:#666}
-  .optional .stop-name::before{content:'○ '}
-  .lodging{background:#eff6ff;padding:10px 14px;border-radius:6px;margin:12px 0;font-size:10pt}
-  .lodging-title{font-weight:bold;color:#1e40af}
-  .safety{background:#fef2f2;padding:10px 14px;border-radius:6px;margin-top:20px;font-size:9.5pt;border-left:3px solid #dc2626}
-  .safety-title{font-weight:bold;color:#991b1b;margin-bottom:4px}
-  @media print{body{max-width:none;margin:8mm;padding:0}a{color:#000;text-decoration:none}}
+  @page{margin:10mm 12mm}
+  body{font-family:'Segoe UI',Arial,sans-serif;color:#111;font-size:9pt;line-height:1.35;margin:0;padding:0}
+  h1{font-size:16pt;margin:0 0 2px 0}
+  .subtitle{color:#555;font-size:9pt;margin-bottom:8px}
+  .lodging{font-size:8.5pt;background:#f0f9ff;padding:6px 10px;border-left:3px solid #0284c7;margin-bottom:8px}
+  .lodging b{color:#075985}
+  .day{margin-top:8px;page-break-inside:avoid}
+  .day-title{font-weight:bold;font-size:10pt;background:#1e293b;color:#fff;padding:4px 8px;border-radius:3px;margin-bottom:3px}
+  .day-title .d-stats{font-weight:normal;font-size:8pt;color:#94a3b8;float:right}
+  .stop{padding:1.5px 0 1.5px 4px;border-bottom:0.5px dotted #ddd}
+  .stop .t{color:#666;font-weight:600;display:inline-block;min-width:52px;font-size:8.5pt}
+  .stop.opt{color:#666}
+  .stop.opt b{font-weight:600}
+  .mstar{color:#d97706;font-weight:bold;margin-right:2px}
+  .mopt{color:#999;font-size:7.5pt;font-style:italic;margin-right:3px}
+  .safety{margin-top:10px;font-size:8pt;background:#fef2f2;padding:6px 10px;border-left:3px solid #dc2626;page-break-inside:avoid}
+  .safety b{color:#991b1b}
+  @media print{
+    body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    a{color:#000;text-decoration:none}
+  }
 </style>
 </head><body>
 <h1>Yellowstone &amp; Grand Teton</h1>
 <div class="subtitle">Aug 25 &ndash; Sep 1, 2026 &middot; 3 adults + 16-mo toddler &middot; 1 SUV</div>
 
 <div class="lodging">
-  <div class="lodging-title">Lodging</div>
-  <div>Aug 25&ndash;28: Terranova Cabins, 35 Kirkwood Creek Rd, West Yellowstone, MT</div>
-  <div>Aug 28&ndash;30: Jackson Hole rental, 3940 S Lake Creek Dr #3, Wilson, WY</div>
-  <div>Aug 30&ndash;Sep 1: Yellowstone Sunshine, 25 White Ln, Gardiner, MT</div>
-</div>
-
-<div class="toc">
-  <div class="toc-title">At a glance</div>
-  ${DAYS.map((d,i)=>`<div class="toc-item">Day ${i+1} &mdash; ${d.date} &mdash; ${d.subtitle}</div>`).join('')}
+  <b>Lodging:</b>
+  Aug 25&ndash;28 Terranova Cabins, 35 Kirkwood Creek Rd, West Yellowstone MT &middot;
+  Aug 28&ndash;30 Wilson rental, 3940 S Lake Creek Dr #3, Wilson WY &middot;
+  Aug 30&ndash;Sep 1 Yellowstone Sunshine, 25 White Ln, Gardiner MT
 </div>
 
 ${daysHtml}
 
 <div class="safety">
-  <div class="safety-title">Safety reminders</div>
-  &bull; NEVER swim in in-park thermal features. Yellowstone Hot Springs (Gardiner, Day 7) is the safe swim option.<br>
-  &bull; Stay 100 yds from bears/wolves, 25 yds from bison/elk.<br>
-  &bull; Hold toddler on all boardwalks &mdash; no railings in many spots.<br>
-  &bull; Carry bear spray on any dawn/dusk walking in Lamar or Hayden.<br>
-  &bull; Check nps.gov/yell each morning for road/construction status.
+  <b>Safety:</b> Never swim in in-park thermals (use Yellowstone Hot Springs, Gardiner) &middot; 100yd from bears/wolves, 25yd from bison/elk &middot; Hold toddler on all boardwalks &middot; Bear spray at dawn in Lamar/Hayden &middot; Check nps.gov/yell each morning.
 </div>
 </body></html>`;
 }
