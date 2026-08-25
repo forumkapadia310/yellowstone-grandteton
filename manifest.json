@@ -1,0 +1,18 @@
+{
+  "name": "Yellowstone & Grand Teton Itinerary",
+  "short_name": "Yellowstone",
+  "description": "8-day family trip Aug 25 - Sep 1, 2026",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#1e293b",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
